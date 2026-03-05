@@ -198,6 +198,7 @@ c2_status_t C2SoftFlacEnc::onStop() {
     mEncoderWriteData = false;
     mEncoderReturnedNbBytes = 0;
     mHeaderOffset = 0;
+    mHeaderActualSize = 0;
     mWroteHeader = false;
 
     c2_status_t status = drain(DRAIN_COMPONENT_NO_EOS, nullptr);
@@ -261,6 +262,7 @@ void C2SoftFlacEnc::process(
 
         work->worklets.front()->output.configUpdate.push_back(std::move(csd));
         mWroteHeader = true;
+        mHeaderActualSize = mHeaderOffset;
     }
 
     const uint32_t channelCount = mIntf->getChannelCount();
@@ -382,6 +384,21 @@ void C2SoftFlacEnc::process(
     if (eos) {
         mSignalledOutputEos = true;
         ALOGV("signalled EOS");
+
+        if (mWroteHeader && mHeaderActualSize > 0) {
+            std::unique_ptr<C2StreamInitDataInfo::output> csd =
+                    C2StreamInitDataInfo::output::AllocUnique(mHeaderActualSize, 0u);
+            if (!csd) {
+                ALOGE("CSD allocation failed");
+                mSignalledError = true;
+                work->result = C2_NO_MEMORY;
+                return;
+            }
+            memcpy(csd->m.value, mHeader, mHeaderActualSize);
+            ALOGV("put csd for final header, %d bytes", mHeaderActualSize);
+
+            work->worklets.front()->output.configUpdate.push_back(std::move(csd));
+        }
     }
     mEncoderWriteData = false;
     mEncoderReturnedNbBytes = 0;
@@ -458,9 +475,9 @@ status_t C2SoftFlacEnc::configureEncoder() {
     ok &= FLAC__STREAM_ENCODER_INIT_STATUS_OK ==
             FLAC__stream_encoder_init_stream(mFlacStreamEncoder,
                     flacEncoderWriteCallback    /*write_callback*/,
-                    nullptr /*seek_callback*/,
-                    nullptr /*tell_callback*/,
-                    nullptr /*metadata_callback*/,
+                    flacEncoderSeekCallback /*seek_callback*/,
+                    flacEncoderTellCallback /*tell_callback*/,
+                    flacEncoderMetadataCallback /*metadata_callback*/,
                     (void *) this /*client_data*/);
 
     if (!ok) {
@@ -486,6 +503,51 @@ FLAC__StreamEncoderWriteStatus C2SoftFlacEnc::flacEncoderWriteCallback(
             void *client_data) {
     return ((C2SoftFlacEnc*) client_data)->onEncodedFlacAvailable(
             buffer, bytes, samples, current_frame);
+}
+
+FLAC__StreamEncoderSeekStatus C2SoftFlacEnc::flacEncoderSeekCallback(
+        const FLAC__StreamEncoder *,
+        FLAC__uint64 absolute_byte_offset,
+        void *client_data) {
+    return ((C2SoftFlacEnc*) client_data)->onSeekFlacOutput(absolute_byte_offset);
+}
+
+FLAC__StreamEncoderSeekStatus C2SoftFlacEnc::onSeekFlacOutput(
+        FLAC__uint64 absolute_byte_offset) {
+    if (!mWroteHeader || mHeaderActualSize == 0 || absolute_byte_offset >= mHeaderActualSize) {
+        return FLAC__STREAM_ENCODER_SEEK_STATUS_UNSUPPORTED;
+    }
+    mHeaderOffset = absolute_byte_offset;
+    return FLAC__STREAM_ENCODER_SEEK_STATUS_OK;
+}
+
+FLAC__StreamEncoderTellStatus C2SoftFlacEnc::flacEncoderTellCallback(
+        const FLAC__StreamEncoder *,
+        FLAC__uint64 *absolute_byte_offset,
+        void *client_data) {
+    return ((C2SoftFlacEnc*) client_data)->onTellFlacOutput(
+            absolute_byte_offset);
+}
+
+FLAC__StreamEncoderTellStatus C2SoftFlacEnc::onTellFlacOutput(
+        FLAC__uint64 *absolute_byte_offset) {
+    if (mWroteHeader) {
+        return FLAC__STREAM_ENCODER_TELL_STATUS_UNSUPPORTED;
+    }
+    *absolute_byte_offset = mHeaderOffset;
+    return FLAC__STREAM_ENCODER_TELL_STATUS_OK;
+}
+
+void C2SoftFlacEnc::flacEncoderMetadataCallback(
+        const FLAC__StreamEncoder *,
+        const FLAC__StreamMetadata *metadata,
+        void *client_data) {
+    ((C2SoftFlacEnc*) client_data)->onFlacMetadataAvailable(metadata);
+}
+
+void C2SoftFlacEnc::onFlacMetadataAvailable(
+        const FLAC__StreamMetadata *metadata) {
+    // TODO
 }
 
 c2_status_t C2SoftFlacEnc::drain(

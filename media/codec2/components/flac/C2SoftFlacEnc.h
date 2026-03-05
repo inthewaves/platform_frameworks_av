@@ -64,6 +64,27 @@ private:
             const FLAC__byte buffer[], size_t bytes, unsigned samples,
             unsigned current_frame);
 
+    static FLAC__StreamEncoderSeekStatus flacEncoderSeekCallback(
+            const FLAC__StreamEncoder *encoder,
+            FLAC__uint64 absolute_byte_offset,
+            void *client_data);
+    FLAC__StreamEncoderSeekStatus onSeekFlacOutput(
+            FLAC__uint64 absolute_byte_offset);
+
+    static FLAC__StreamEncoderTellStatus flacEncoderTellCallback(
+            const FLAC__StreamEncoder *encoder,
+            FLAC__uint64 *absolute_byte_offset,
+            void *client_data);
+    FLAC__StreamEncoderTellStatus onTellFlacOutput(
+            FLAC__uint64 *absolute_byte_offset);
+
+    static void flacEncoderMetadataCallback(
+            const FLAC__StreamEncoder *encoder,
+            const FLAC__StreamMetadata *metadata,
+            void *client_data);
+    void onFlacMetadataAvailable(
+            const FLAC__StreamMetadata *metadata);
+
     std::shared_ptr<IntfImpl> mIntf;
     const unsigned int kInBlockSize = 1152;
     static constexpr unsigned int kMaxNumChannels = 2;
@@ -81,6 +102,7 @@ private:
     bool mEncoderWriteData;
     size_t mEncoderReturnedNbBytes;
     unsigned mHeaderOffset;
+    unsigned mHeaderActualSize;
     bool mWroteHeader;
     char mHeader[FLAC_HEADER_SIZE];
     struct OutputBuffer {
