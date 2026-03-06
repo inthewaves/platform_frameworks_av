@@ -547,7 +547,7 @@ void C2SoftFlacEnc::flacEncoderMetadataCallback(
 
 void C2SoftFlacEnc::onFlacMetadataAvailable(
         const FLAC__StreamMetadata *metadata) {
-    // TODO
+    ALOGD("metadata type %d", metadata->type);
 }
 
 c2_status_t C2SoftFlacEnc::drain(
