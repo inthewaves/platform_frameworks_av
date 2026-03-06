@@ -3186,6 +3186,14 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                             : work->worklets.front()->output.configUpdate) {
                         // Note: FLAC final header is put into config update right now.
                         updates.push_back(C2Param::Copy(*param));
+
+                        if (param->index() == C2StreamInitDataInfo::output::PARAM_TYPE) {
+                            auto initDataHere =
+                                    C2StreamInitDataInfo::output::From(param.get());
+                            if (initDataHere) {
+                                ALOGD("GOS-DEBUG C2StreamInitDataInfo initData flexCount %zu", initDataHere->flexCount());
+                            }
+                        }
                     }
                     // Check for change in resources required.
                     if (!updates.empty() && android::media::codec::codec_availability_support()) {
@@ -3267,12 +3275,30 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                         config->mInputSurface->onInputBufferDone(work->input.ordinal.frameIndex);
                     }
                 }
+
                 if (initDataWatcher.hasChanged()) {
+                    ALOGD("GOS-DEBUG: initDataWatcher changed!");
                     // TODO: FLAC header does not enter this path and cannot surface format changes with header
                     initData = initDataWatcher.update();
                     AmendOutputFormatWithCodecSpecificData(
                             initData->m.value, initData->flexCount(), config->mCodingMediaType,
                             config->mOutputFormat);
+                } else if (config->mCodingMediaType == MIMETYPE_AUDIO_FLAC && !work->worklets.empty()) {
+                    int numProcessed = 0;
+                    for (const std::unique_ptr<C2Param> &param
+                            : work->worklets.front()->output.configUpdate) {
+                        numProcessed++;
+                        if (param->index() == C2StreamInitDataInfo::output::PARAM_TYPE) {
+                            auto initDataHere =
+                                    C2StreamInitDataInfo::output::From(param.get());
+                            if (initDataHere) {
+                                AmendOutputFormatWithCodecSpecificData(
+                                        initDataHere->m.value, initDataHere->flexCount(),
+                                        config->mCodingMediaType, config->mOutputFormat);
+                            }
+                        }
+                    }
+                    ALOGD("FLAC front flags %d, back flags %d, processed %d", work->worklets.front()->output.flags, work->worklets.back()->output.flags, numProcessed);
                 }
                 inputFormat = config->mInputFormat;
                 outputFormat = config->mOutputFormat;
