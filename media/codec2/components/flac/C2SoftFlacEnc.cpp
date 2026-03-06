@@ -392,12 +392,12 @@ void C2SoftFlacEnc::process(
                 ALOGE("CSD allocation failed");
                 mSignalledError = true;
                 work->result = C2_NO_MEMORY;
-                return;
-            }
-            memcpy(csd->m.value, mHeader, mHeaderActualSize);
-            ALOGV("put csd for final header, %d bytes", mHeaderActualSize);
+            } else {
+                memcpy(csd->m.value, mHeader, mHeaderActualSize);
+                ALOGV("put csd for final header, %d bytes", mHeaderActualSize);
 
-            work->worklets.front()->output.configUpdate.push_back(std::move(csd));
+                work->worklets.front()->output.configUpdate.push_back(std::move(csd));
+            }
         }
     }
     mEncoderWriteData = false;
