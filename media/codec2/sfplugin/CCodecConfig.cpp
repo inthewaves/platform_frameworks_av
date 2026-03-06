@@ -1301,7 +1301,6 @@ bool CCodecConfig::updateConfiguration(
                     // only track changes in supported (reflected or local) indices
                     changed = true;
                 } else {
-                    // TODO: FLAC header final update is going to this path.
                     ALOGV("an unlisted config was %s: %#x",
                             insertion.second ? "added" : "updated", p->index());
                 }

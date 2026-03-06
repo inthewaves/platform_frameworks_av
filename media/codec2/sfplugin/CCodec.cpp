@@ -3184,7 +3184,6 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                     std::vector<std::unique_ptr<C2Param>> updates;
                     for (const std::unique_ptr<C2Param> &param
                             : work->worklets.front()->output.configUpdate) {
-                        // Note: FLAC final header is put into config update right now.
                         updates.push_back(C2Param::Copy(*param));
 
                         if (param->index() == C2StreamInitDataInfo::output::PARAM_TYPE) {
@@ -3278,7 +3277,6 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
 
                 if (initDataWatcher.hasChanged()) {
                     ALOGD("GOS-DEBUG: initDataWatcher changed!");
-                    // TODO: FLAC header does not enter this path and cannot surface format changes with header
                     initData = initDataWatcher.update();
                     AmendOutputFormatWithCodecSpecificData(
                             initData->m.value, initData->flexCount(), config->mCodingMediaType,
