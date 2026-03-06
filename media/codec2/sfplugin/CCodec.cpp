@@ -3184,6 +3184,7 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                     std::vector<std::unique_ptr<C2Param>> updates;
                     for (const std::unique_ptr<C2Param> &param
                             : work->worklets.front()->output.configUpdate) {
+                        // Note: FLAC final header is put into config update right now.
                         updates.push_back(C2Param::Copy(*param));
                     }
                     // Check for change in resources required.
@@ -3267,6 +3268,7 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                     }
                 }
                 if (initDataWatcher.hasChanged()) {
+                    // TODO: FLAC header does not enter this path and cannot surface format changes with header
                     initData = initDataWatcher.update();
                     AmendOutputFormatWithCodecSpecificData(
                             initData->m.value, initData->flexCount(), config->mCodingMediaType,
