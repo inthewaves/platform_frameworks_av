@@ -3281,22 +3281,6 @@ void CCodec::onMessageReceived(const sp<AMessage> &msg) {
                     AmendOutputFormatWithCodecSpecificData(
                             initData->m.value, initData->flexCount(), config->mCodingMediaType,
                             config->mOutputFormat);
-                } else if (config->mCodingMediaType == MIMETYPE_AUDIO_FLAC && !work->worklets.empty()) {
-                    int numProcessed = 0;
-                    for (const std::unique_ptr<C2Param> &param
-                            : work->worklets.front()->output.configUpdate) {
-                        numProcessed++;
-                        if (param->index() == C2StreamInitDataInfo::output::PARAM_TYPE) {
-                            auto initDataHere =
-                                    C2StreamInitDataInfo::output::From(param.get());
-                            if (initDataHere) {
-                                AmendOutputFormatWithCodecSpecificData(
-                                        initDataHere->m.value, initDataHere->flexCount(),
-                                        config->mCodingMediaType, config->mOutputFormat);
-                            }
-                        }
-                    }
-                    ALOGD("FLAC front flags %d, back flags %d, processed %d", work->worklets.front()->output.flags, work->worklets.back()->output.flags, numProcessed);
                 }
                 inputFormat = config->mInputFormat;
                 outputFormat = config->mOutputFormat;
